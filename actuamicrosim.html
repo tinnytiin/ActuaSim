@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator Actuamicro</title>
+<style>
+  :root {
+    --bg: #0E2A3F;
+    --card: #17394F;
+    --ink: #F6F3EC;
+    --mut: #B7C6CF;
+    --line: #2A4F66;
+    --teal: #3DBFA3;
+    --amber: #F2A23A;
+    --red: #F0877B;
+    --track: #0E2A3F;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, sans-serif; line-height: 1.45; }
+  main { max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  .sub { color: var(--mut); margin: 0 0 18px; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .ctl { margin-bottom: 14px; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .ctl b { color: var(--teal); }
+  input[type=range] { width: 100%; accent-color: var(--teal); }
+  .pre { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  button { font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  button:hover { border-color: var(--teal); }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .k { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .k small { display: block; color: var(--mut); font-size: 12px; }
+  .k strong { font-size: 18px; }
+  .bar { display: flex; height: 32px; border-radius: 8px; overflow: hidden; background: var(--track); }
+  .bar div { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border: 0; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+  .cb { position: relative; height: 26px; border-radius: 8px; background: var(--track); overflow: hidden; display: flex; }
+  .cb i { display: block; height: 100%; }
+  .mk { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
+  .lg { display: flex; justify-content: space-between; font-size: 12px; color: var(--mut); margin-top: 6px; }
+  .note { font-size: 12px; color: var(--mut); line-height: 1.4; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulator Actuamicro</h1>
+  <p class="sub">Geser slider untuk melihat arus premi, klaim, surplus, dan float. Semua angka dihitung langsung dari model aktuaria.</p>
+
+  <section class="card">
+    <h2>Asumsi</h2>
+    <div class="ctl"><label>Jumlah pekerja <b id="vn"></b></label><input id="n" type="range" min="10000" max="1000000" step="10000" value="50000"></div>
+    <div class="ctl"><label>Premi per hari aktif <b id="vp"></b></label><input id="p" type="range" min="2000" max="5000" step="500" value="5000"></div>
+    <div class="ctl"><label>Hari aktif per tahun <b id="vd"></b></label><input id="d" type="range" min="200" max="300" step="10" value="250"></div>
+    <div class="ctl">
+      <label>Klaim sebagai % dari premi risiko murni (&pi;) <b id="vl"></b></label>
+      <input id="l" type="range" min="0" max="150" step="1" value="20">
+      <div class="pre">
+        <button data-l="20">Normal 20%</button>
+        <button data-l="50">Stress 50%</button>
+        <button data-l="110">Ekstrem 110%</button>
+        <button data-l="130">Di atas &theta; 130%</button>
+      </div>
+      <p class="note" style="margin:8px 0 0">&pi; (premi risiko murni) adalah 56% premi yang disiapkan khusus untuk membayar klaim. Slider ini menunjukkan berapa persen dari dana itu yang terpakai; sisanya menjadi surplus.</p>
+    </div>
+    <div class="ctl"><label>Imbal hasil float (per tahun) <b id="vy"></b></label><input id="y" type="range" min="0" max="10" step="0.5" value="5"></div>
+    <div class="ctl"><label>Biaya operasional tetap per tahun <b id="vo"></b></label><input id="o" type="range" min="0" max="30" step="0.5" value="10"></div>
+    <div class="ctl"><label>Biaya pemrosesan per klaim <b id="vk"></b></label><input id="k" type="range" min="0" max="50000" step="1000" value="10000"></div>
+  </section>
+
+  <section class="card">
+    <h2>Hasil tahunan <span id="st" class="badge"></span></h2>
+    <div class="grid" id="kp"></div>
+  </section>
+
+  <section class="card">
+    <h2>Ke mana premi mengalir</h2>
+    <p class="note" style="margin:-4px 0 12px">Bagian hijau tua, premi risiko murni (&pi;), adalah dana yang khusus dipakai membayar klaim peserta. Bagian lain menutup risiko ekstrem, teknologi, distribusi, carrier, dan margin platform.</p>
+    <div class="bar" id="sb"></div>
+    <div id="sl" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>Klaim terhadap lapisan pertahanan</h2>
+    <div class="cb"><i id="c1" style="background:var(--teal)"></i><i id="c2" style="background:var(--amber)"></i><span class="mk" id="mk"></span></div>
+    <div class="lg"><span>0</span><span>Garis &pi; (lapisan 1)</span><span>&theta; habis</span></div>
+    <p id="ct" class="note" style="margin:10px 0 0"></p>
+  </section>
+
+  <p class="note">Asumsi: alokasi 56% &pi;, 8% &theta;, 9% teknologi, 12% komisi B2B2C, 7% carrier fee, 8% margin platform (dari simulasi Tier 2) diterapkan ke semua level premi. Surplus underwriting dibagi 60% platform dan 40% carrier; &theta; tak terpakai dibekukan sebagai cadangan teknis. Float = premi tahunan &divide; 12. Laba bersih = pendapatan platform (17% premi + 60% surplus) dikurangi biaya tetap dan biaya per klaim, dengan asumsi rata-rata santunan Rp150.000 per klaim. Titik impas dihitung pada loss ratio yang sedang dipilih. Ini simulasi ilustratif, bukan jaminan hasil.</p>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+function f(n) {
+  const a = Math.abs(n), o = x => x.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  let s;
+  if (a >= 1e12) s = o(n / 1e12) + ' triliun';
+  else if (a >= 1e9) s = o(n / 1e9) + ' miliar';
+  else if (a >= 1e6) s = o(n / 1e6) + ' juta';
+  else s = Math.round(n).toLocaleString('id-ID');
+  return 'Rp' + s;
+}
+const P = [
+  ["Premi risiko murni (\u03C0)", .56, "#3DBFA3"],
+  ["Risk loading (\u03B8)", .08, "#F2A23A"],
+  ["AI dan teknologi", .09, "#3B6E8F"],
+  ["Komisi mitra B2B2C", .12, "#6C97AD"],
+  ["Carrier fee", .07, "#8A8372"],
+  ["Margin platform", .08, "#14232F"]
+];
+function run() {
+  const n = +$('n').value, p = +$('p').value, d = +$('d').value, l = +$('l').value, y = +$('y').value, o = +$('o').value, k = +$('k').value;
+  $('vo').textContent = o.toLocaleString('id-ID') + ' miliar'; $('vk').textContent = f(k);
+  $('vn').textContent = n.toLocaleString('id-ID'); $('vp').textContent = f(p); $('vd').textContent = d + ' hari'; $('vl').textContent = l + '%'; $('vy').textContent = y.toLocaleString('id-ID') + '%';
+  const gwp = n * p * d, pi = .56 * gwp, th = .08 * gwp, cl = l / 100 * pi, sur = Math.max(0, pi - cl), def = Math.max(0, cl - pi), tu = Math.min(def, th), unc = def - tu;
+  const plat = .17 * gwp + .6 * sur, flo = gwp / 12, yl = flo * y / 100, nc = cl / 150000, vc = nc * k, fx = o * 1e9, net = plat - vc - fx, per = (plat - vc) / n, be = per > 0 ? fx / per : Infinity;
+  let t, c;
+  if (l <= 25) { t = "Normal"; c = "#3DBFA3"; }
+  else if (l <= 100) { t = "Stress: \u03C0 menutup penuh"; c = "#F2A23A"; }
+  else if (unc <= 0) { t = "Ekstrem: \u03B8 aktif"; c = "#F0877B"; }
+  else { t = "Melebihi \u03B8"; c = "#7A1F16"; }
+  $('st').textContent = t; $('st').style.background = c;
+  const K = [
+    ["Premi tahunan (GWP)", f(gwp)], ["Beban klaim", f(cl)],
+    [def > 0 ? "Defisit \u03C0" : "Surplus underwriting", f(def > 0 ? def : sur)],
+    ["Pendapatan platform", f(plat)], ["Bagian carrier dari surplus", f(.4 * sur)],
+    ["Rata-rata float", f(flo)], ["Hasil investasi float", f(yl)],
+    ["Cadangan \u03B8 tersedia", f(th - tu)], ["Laba bersih platform", f(net)],
+    ["Margin laba bersih", (gwp ? net / gwp * 100 : 0).toFixed(1).replace('.', ',') + '% dari premi'],
+    ["Pekerja minimum untuk impas", be === Infinity ? 'Tidak tercapai' : Math.ceil(be).toLocaleString('id-ID')]
+  ];
+  $('kp').innerHTML = K.map(k => `<div class="k"><small>${k[0]}</small><strong>${k[1]}</strong></div>`).join('');
+  $('sb').innerHTML = P.map(x => `<div style="width:${x[1] * 100}%;background:${x[2]}">${Math.round(x[1] * 100)}%</div>`).join('');
+  $('sl').innerHTML = P.map(x => `<div class="row"><span><span class="dot" style="background:${x[2]}"></span>${x[0]}</span><span>${f(x[1] * gwp)} &middot; ${f(x[1] * p)}/hari</span></div>`).join('');
+  const tot = pi + th;
+  $('c1').style.width = Math.min(cl, pi) / tot * 100 + '%';
+  $('c2').style.width = Math.min(Math.max(cl - pi, 0), th) / tot * 100 + '%';
+  $('mk').style.left = pi / tot * 100 + '%';
+  $('ct').textContent = unc > 0 ? `Klaim melampaui \u03C0 dan seluruh \u03B8. Kekurangan ${f(unc)} perlu ditutup reasuransi atau modal carrier.` : def > 0 ? `Klaim melampaui \u03C0 sebesar ${f(def)}. Cadangan \u03B8 menyerapnya, sisa \u03B8 ${f(th - tu)}.` : `Klaim ${f(cl)} masih di bawah \u03C0 (${f(pi)}). Surplus ${f(sur)}: platform ${f(.6 * sur)}, carrier ${f(.4 * sur)}.`;
+}
+document.querySelectorAll('input').forEach(e => e.addEventListener('input', run));
+document.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { $('l').value = b.dataset.l; run(); }));
+run();
+</script>
+</body>
+</html>
